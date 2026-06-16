@@ -6,6 +6,22 @@ This repo contains a few scripts I developed to help me manage my analog picture
 - modify EXIF
 - manage your film list ...
 
+- [Analog Picture Manager Toolbox](#analog-picture-manager-toolbox)
+  - [analog-picture-manager](#analog-picture-manager)
+    - [Metadata files](#metadata-files)
+    - [Script use](#script-use)
+      - [Default](#default)
+        - [Anonymize](#anonymize)
+      - [Exif Update](#exif-update)
+      - [Film management](#film-management)
+        - [Film table](#film-table)
+        - [Film stock](#film-stock)
+        - [rename-prefix-recursive](#rename-prefix-recursive)
+          - [Main idea](#main-idea)
+          - [Prefix to prefix rename](#prefix-to-prefix-rename)
+          - [No-prefix mode](#no-prefix-mode)
+          - [Safety](#safety)
+
 ## analog-picture-manager
 
 The analog picture manager will scan a path and its subfolders recursively to help you classify/manage and change EXIF of your analog picture scans.
