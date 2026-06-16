@@ -1,12 +1,15 @@
 # Analog Picture Manager Toolbox
 
-This repo contains a few scripts I developed to help me manage my analog picture scans. With the tools you can:
+This repo contains a few scripts I developed (with help of copilot) to help me manage my analog picture scans. With the tools you can:
 
 - Create resume
 - modify EXIF
 - manage your film list ...
 
+## TOC
+
 - [Analog Picture Manager Toolbox](#analog-picture-manager-toolbox)
+  - [TOC](#toc)
   - [analog-picture-manager](#analog-picture-manager)
     - [Metadata files](#metadata-files)
     - [Script use](#script-use)
