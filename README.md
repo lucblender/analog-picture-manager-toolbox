@@ -16,11 +16,11 @@ This repo contains a few scripts I developed to help me manage my analog picture
       - [Film management](#film-management)
         - [Film table](#film-table)
         - [Film stock](#film-stock)
-        - [rename-prefix-recursive](#rename-prefix-recursive)
-          - [Main idea](#main-idea)
-          - [Prefix to prefix rename](#prefix-to-prefix-rename)
-          - [No-prefix mode](#no-prefix-mode)
-          - [Safety](#safety)
+      - [rename-prefix-recursive](#rename-prefix-recursive)
+        - [Main idea](#main-idea)
+        - [Prefix to prefix rename](#prefix-to-prefix-rename)
+        - [No-prefix mode](#no-prefix-mode)
+        - [Safety](#safety)
 
 ## analog-picture-manager
 
@@ -202,7 +202,7 @@ Two options are available:
 
 This part helps you keep your film inventory synced with your real usage.
 
-##### rename-prefix-recursive
+#### rename-prefix-recursive
 
 This second script helps you rename marker files recursively when your naming convention changes, or if you want to rename a specific file.
 
@@ -217,7 +217,7 @@ Example use case:
 
 The script can batch rename all matching files in all subfolders.
 
-###### Main idea
+##### Main idea
 
 It uses global vars at the top of the script so you can configure quickly:
 
@@ -227,13 +227,13 @@ It uses global vars at the top of the script so you can configure quickly:
 - optional no-prefix mode
 - dry-run mode
 
-###### Prefix to prefix rename
+##### Prefix to prefix rename
 
 Typical example:
 
 - `00-AgfaBillyRecord.txt` -> `CAM-AgfaBillyRecord.txt`
 
-###### No-prefix mode
+##### No-prefix mode
 
 You can also target files that do not start with known prefixes.
 
@@ -243,7 +243,7 @@ Example:
 
 - `Kodak-Porta-160.txt` -> `FILM-Kodak-Porta-160.txt`
 
-###### Safety
+##### Safety
 
 - Use DRY_RUN first to preview rename operations
 - Existing target file is skipped to avoid overwrite
