@@ -565,6 +565,8 @@ def update_photos_exif_data(root_path):
         return
 
     image_extensions = {'.jpg', '.jpeg', '.tif', '.tiff', '.png', '.webp'}
+    exif_iptc_extensions = {'.jpg', '.jpeg', '.tif', '.tiff'}
+    xmp_only_extensions = {'.png', '.webp'}
     folders_updated = 0
     folders_ignored = 0
     pictures_updated = 0
@@ -574,7 +576,7 @@ def update_photos_exif_data(root_path):
         folder_path = Path(current_root)
         marker_path = folder_path / EXIF_UPDATE_MARKER_FILE
 
-        folder_image_files = [
+        folder_image_paths = [
             folder_path / file_name
             for file_name in files
             if (folder_path / file_name).suffix.lower() in image_extensions
@@ -582,7 +584,7 @@ def update_photos_exif_data(root_path):
 
         if marker_path.exists():
             folders_ignored += 1
-            pictures_ignored += len(folder_image_files)
+            pictures_ignored += len(folder_image_paths)
             continue
 
         metadata = extract_folder_metadata(folder_path)
@@ -598,47 +600,82 @@ def update_photos_exif_data(root_path):
 
         if not has_metadata:
             folders_ignored += 1
-            pictures_ignored += len(folder_image_files)
+            pictures_ignored += len(folder_image_paths)
             continue
 
-        image_files = [str(file_path) for file_path in folder_image_files]
-
-        if not image_files:
+        if not folder_image_paths:
             folders_ignored += 1
             continue
 
-        cmd = [exiftool_path, '-overwrite_original']
+        files_with_exif_iptc = [
+            str(file_path)
+            for file_path in folder_image_paths
+            if file_path.suffix.lower() in exif_iptc_extensions
+        ]
+        files_with_xmp_only = [
+            str(file_path)
+            for file_path in folder_image_paths
+            if file_path.suffix.lower() in xmp_only_extensions
+        ]
 
-        if metadata['camera_model']:
-            cmd.append(f"-Model={metadata['camera_model']}")
+        def run_metadata_update(image_files, include_exif_iptc_tags):
+            if not image_files:
+                return True
 
-        if metadata['film_iso'] is not None:
-            cmd.append(f"-ISO={metadata['film_iso']}")
+            cmd = [exiftool_path, '-overwrite_original']
 
-        if metadata['program_name']:
-            cmd.append(f"-Software={metadata['program_name']}")
-            cmd.append(f"-XMP-xmp:CreatorTool={metadata['program_name']}")
+            if metadata['camera_model']:
+                cmd.append(f"-XMP-tiff:Model={metadata['camera_model']}")
+                if include_exif_iptc_tags:
+                    cmd.append(f"-Model={metadata['camera_model']}")
 
-        if metadata['film_stock']:
-            cmd.append(f"-XMP-dc:Subject+={metadata['film_stock']}")
-            cmd.append(f"-IPTC:Keywords+={metadata['film_stock']}")
+            if metadata['film_iso'] is not None:
+                cmd.append(
+                    f"-XMP-exif:PhotographicSensitivity={metadata['film_iso']}"
+                )
+                if include_exif_iptc_tags:
+                    cmd.append(f"-ISO={metadata['film_iso']}")
 
-        cmd.extend(image_files)
+            if metadata['program_name']:
+                cmd.append(f"-Software={metadata['program_name']}")
+                cmd.append(f"-XMP-xmp:CreatorTool={metadata['program_name']}")
 
-        result = subprocess.run(
-            cmd, capture_output=True, text=True, check=False)
-        if result.returncode != 0:
+            if metadata['film_stock']:
+                cmd.append(f"-XMP-dc:Subject+={metadata['film_stock']}")
+                if include_exif_iptc_tags:
+                    cmd.append(f"-IPTC:Keywords+={metadata['film_stock']}")
+
+            cmd.extend(image_files)
+
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, check=False)
+            if result.returncode == 0:
+                return True
+
             print(f"\n⚠️ Failed metadata update in folder: {folder_path}")
             stderr = (result.stderr or '').strip()
             if stderr:
                 print(f"   {stderr}")
+            return False
+
+        exif_iptc_ok = run_metadata_update(
+            files_with_exif_iptc,
+            include_exif_iptc_tags=True,
+        )
+        xmp_only_ok = run_metadata_update(
+            files_with_xmp_only,
+            include_exif_iptc_tags=False,
+        )
+        update_ok = exif_iptc_ok and xmp_only_ok
+
+        if not update_ok:
             folders_ignored += 1
-            pictures_ignored += len(image_files)
+            pictures_ignored += len(folder_image_paths)
             continue
 
         marker_path.touch(exist_ok=True)
         folders_updated += 1
-        pictures_updated += len(image_files)
+        pictures_updated += len(folder_image_paths)
 
     print("\n📝 EXIF update summary")
     print(f"   Folders updated: {folders_updated}")
@@ -664,7 +701,10 @@ def parse_args():
     parser.add_argument(
         '--exif-update',
         action='store_true',
-        help='Recursively update image metadata from marker files (requires exiftool)'
+        help=(
+            'Recursively update image metadata from marker files (requires exiftool). '
+            'PNG/WebP are updated using XMP-safe tags.'
+        )
     )
     parser.add_argument(
         '--anonymize',
