@@ -60,7 +60,7 @@ def parse_film_marker_for_table(film_stem):
     if parts and parts[-1] in {'Color', 'BW', 'IR', 'B/W'}:
         film_color = parts.pop()
 
-    if parts and parts[-1] in {'135', '120'}:
+    if parts and parts[-1] in {'135', '120', '110'}:
         film_format = parts.pop()
 
     film_stock = '-'.join(parts) if parts else None
@@ -556,13 +556,16 @@ def extract_folder_metadata(folder_path):
     }
 
 
-def update_photos_exif_data(root_path):
+def update_photos_exif_data(root_path, analyze_only=False):
     """Recursively update image metadata from marker files using exiftool."""
     exiftool_path = shutil.which('exiftool')
-    if not exiftool_path:
-        print("\n⚠️ --exif-update requested, but 'exiftool' was not found in PATH.")
+    if not exiftool_path and not analyze_only:
+        print(
+            "\n[WARN] --exif-update requested, but 'exiftool' was not found in PATH.")
         print("   Install ExifTool and re-run to enable metadata updates.")
         return
+    if not exiftool_path:
+        exiftool_path = 'exiftool'
 
     image_extensions = {'.jpg', '.jpeg', '.tif', '.tiff', '.png', '.webp'}
     exif_iptc_extensions = {'.jpg', '.jpeg', '.tif', '.tiff'}
@@ -647,12 +650,18 @@ def update_photos_exif_data(root_path):
 
             cmd.extend(image_files)
 
+            if analyze_only:
+                print(f"\n[ANALYZE] EXIF analyze in folder: {folder_path}")
+                print(f"   Files targeted: {len(image_files)}")
+                print(f"   Command: {subprocess.list2cmdline(cmd)}")
+                return True
+
             result = subprocess.run(
                 cmd, capture_output=True, text=True, check=False)
             if result.returncode == 0:
                 return True
 
-            print(f"\n⚠️ Failed metadata update in folder: {folder_path}")
+            print(f"\n[WARN] Failed metadata update in folder: {folder_path}")
             stderr = (result.stderr or '').strip()
             if stderr:
                 print(f"   {stderr}")
@@ -673,14 +682,19 @@ def update_photos_exif_data(root_path):
             pictures_ignored += len(folder_image_paths)
             continue
 
-        marker_path.touch(exist_ok=True)
+        if not analyze_only:
+            marker_path.touch(exist_ok=True)
         folders_updated += 1
         pictures_updated += len(folder_image_paths)
 
-    print("\n📝 EXIF update summary")
-    print(f"   Folders updated: {folders_updated}")
+    summary_title = "EXIF analyze summary" if analyze_only else "EXIF update summary"
+    folders_label = "Folders to update" if analyze_only else "Folders updated"
+    pictures_label = "Pictures to update" if analyze_only else "Pictures updated"
+
+    print(f"\n{summary_title}")
+    print(f"   {folders_label}: {folders_updated}")
     print(f"   Folders ignored: {folders_ignored}")
-    print(f"   Pictures updated: {pictures_updated}")
+    print(f"   {pictures_label}: {pictures_updated}")
     print(f"   Pictures ignored: {pictures_ignored}")
 
 
@@ -698,12 +712,21 @@ def parse_args():
         default='.',
         help='Root directory to scan (default: current directory)'
     )
-    parser.add_argument(
+    exif_mode = parser.add_mutually_exclusive_group()
+    exif_mode.add_argument(
         '--exif-update',
         action='store_true',
         help=(
             'Recursively update image metadata from marker files (requires exiftool). '
             'PNG/WebP are updated using XMP-safe tags.'
+        )
+    )
+    exif_mode.add_argument(
+        '--exif-analyze',
+        action='store_true',
+        help=(
+            'Simulate --exif-update without writing metadata or marker files; '
+            'prints planned exiftool commands.'
         )
     )
     parser.add_argument(
@@ -735,6 +758,7 @@ def main():
     root_path = args.root_path
     generate_standard_report = not (
         args.exif_update
+        or args.exif_analyze
         or args.film_table
         or args.film_stock_analyze
         or args.film_stock_create
@@ -748,9 +772,13 @@ def main():
         print(f"Error: Path '{root_path}' does not exist.")
         sys.exit(1)
 
-    if args.exif_update:
-        print("\nUpdating photo metadata recursively (--exif-update enabled)...")
-        update_photos_exif_data(root_path)
+    if args.exif_update or args.exif_analyze:
+        if args.exif_analyze:
+            print(
+                "\nAnalyzing photo metadata updates recursively (--exif-analyze enabled)...")
+        else:
+            print("\nUpdating photo metadata recursively (--exif-update enabled)...")
+        update_photos_exif_data(root_path, analyze_only=args.exif_analyze)
 
         if not (args.film_table or args.film_stock_analyze or args.film_stock_create):
             return
